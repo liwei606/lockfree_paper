@@ -1,0 +1,177 @@
+embed {{ coq Require Import Omega ClassicalChoice basis (* LibMap *). }}
+embed {{ coq-lib list_mem list_assoc list_minus list_minus2 }}
+
+embed {{ coq 
+
+Set Implicit Arguments.
+
+Definition nf_update B (r: nat -> B) (x : nat) (b: B) (y : nat) : B :=
+  if Peano_dec.eq_nat_dec x y then b else r y.
+
+Definition ffun B :=
+  { f: nat -> option B & { n | forall m (LEQ: n <= m), f m = None} }.
+
+Program Definition empty_map B : ffun B := 
+  existT _ (fun y => None) (existT _ 0 _).
+
+Program Definition ff_update B (r: ffun B) (x : nat) (b: B) : ffun B :=
+  existT _ (fun y => if Peano_dec.eq_nat_dec x y then Some b else projT1 r y)
+   (existT _ (max (projT1 (projT2 r)) (S x)) _).
+Next Obligation.
+  destruct r as (r & n & H); simpl in *.
+  destruct (Peano_dec.eq_nat_dec x m); subst.
+  eapply Max.max_lub_r in LEQ; omega. 
+  eauto using Max.max_lub_l.
+Qed.
+
+ }}
+
+metavar termvar, x, f ::=   {{ coq nat }}  {{ coq-equality }}
+
+grammar
+
+% ------------------------------------------------------------------------------
+%  Values and expressions (no types)
+% ------------------------------------------------------------------------------
+
+nat, n, p  :: 'Nat' ::=  {{ phantom }} {{ coq  nat }}
+  | 0                :: M :: zero      {{ coq 0 }}
+  | 1                :: M :: one       {{ coq 1 }}
+  | n1 + n2          :: M :: plus      {{ coq ([[n1]] + [[n2]]) }}
+  | ss x             :: M :: get_store {{ coq ([[ss]] [[x]])  }}
+
+store, ss {{ tex \sigma }} :: 'Store' ::= {{ phantom }} {{ coq (nat -> nat) }}
+  | ss [ x := n ]    :: M :: upd       {{ coq (nf_update [[ss]] [[x]] [[n]]) }}
+
+exp, E :: 'E' ::=  
+  | x                ::   :: var
+  | E1 + E2          ::   :: plus
+  | ( E )            :: S :: paren     {{ ich [[E]] }}
+
+bexp, B :: 'B' ::=
+  | E1 = E2          ::   :: eq
+  | E1 < E2          ::   :: less
+
+cmd, C :: 'C' ::=
+  | skip                   ::   :: skip
+  | x = E                  ::   :: assign
+  | assume B               ::   :: assume
+  | C1 ; C2                ::   :: seq
+  | atomic C               ::   :: atomic
+  | loop C                 ::   :: loop
+  | inloop ( C1 , C2 , p ) ::   :: insloop   {{ tex \mathbf{inloop}^{[[p]]}_{[[C2]]}([[C1]]) }}
+  | break                  ::   :: break
+  | C1 || C2               ::   :: par       {{ tex [[C1]] \parallel [[C2]] }}
+  | C1 + C2                ::   :: choice    {{ tex [[C1]] \oplus [[C2]] }}
+  | ( C )                  :: S :: paren     {{ ich [[C]] }}
+
+formula :: 'formula_' ::=  
+   | judgement                 ::   :: judgement
+   | n1 = n2                   :: M :: nat_equal {{ coq [[n1]] = [[n2]] }}
+   | n1 < n2                   :: M :: nat_less  {{ coq [[n1]] < [[n2]] }}
+   | True                      :: M :: true      {{ coq True }}
+   | False                     :: M :: false     {{ coq False }}
+   | ( formula )               :: M :: brackets  {{ coq [[formula]] }} {{ tex ([[formula]]) }}  
+   |  formula_1 \/ formula_2   :: M :: or        {{ coq [[formula_1]] \/ [[formula_2]] }} 
+   |  formula_1 /\ formula_2   :: M :: and       {{ coq [[formula_1]] /\ [[formula_2]] }}
+
+terminals :: 'terminals_' ::=
+   |  \/       ::  :: or      {{ tex \vee }}
+   |  /\       ::  :: and     {{ tex \wedge }}
+   |  <=       ::  :: leq     {{ tex \leq }}
+
+funs edenot_funs ::=   
+ fun
+      [[ E ]] ss  :: nat :: edenot  {{ tex [\![ [[E]] ]\!]_{[[ss]]} }}
+ by
+      [[ x ]] ss        ===  ss x 
+      [[ E1 + E2 ]] ss  ===  [[ E1 ]] ss + [[ E2 ]] ss
+
+ fun 
+      [[ B ]] ss  :: formula :: bdenot   {{ tex [\![ [[B]] ]\!]_{[[ss]]} }}
+ by
+      [[ E1 = E2 ]] ss    ===   [[E1]] ss = [[E2]] ss
+      [[ E1 < E2 ]] ss    ===   [[E1]] ss < [[E2]] ss
+
+funs abort_funs ::=
+
+ fun  aborts < C , ss , p >  :: formula :: aborts  
+    {{ tex \textbf{aborts} \langle[[C]],[[ss]],[[p]]\rangle }}
+ by
+    aborts < C1 ; C2, ss, p >           === aborts < C1, ss, p >
+    aborts < C1 || C2, ss, p >          === aborts < C1, ss, p > \/ aborts < C2, ss, p >
+    aborts < inloop(skip,C,p'), ss, p>  === p' < p
+    aborts < C , ss, p >                === False
+
+defns
+OpSemJudg :: '' ::=
+
+ defn
+ < C , ss , p > --> < C' , ss' , p' > :: :: step :: 'S' {{ com small step }} 
+   {{ tex \langle [[ C ]] , [[ ss ]] , [[ p ]] \rangle \to \langle [[ C' ]] , [[ss']],[[p']] \rangle}}
+ by
+
+    ------------------------------------- :: assign
+    <x = E, ss, p> --> <skip, ss [x := [[ E ]] ss], p + 1>
+
+    <C1, ss, p> --> <C1', ss', p'>
+    ------------------------------------- :: seqI
+    <C1; C2, ss, p> --> <C1'; C2, ss', p'>
+
+    ------------------------------------- :: seqII
+    <skip; C2, ss, p> --> <C2, ss, p>
+
+
+    [[ B ]] ss
+    ------------------------------------- :: assume
+    <assume B, ss, p> --> <skip, ss, p>
+
+embed
+{{* tex-wrap-pre
+\usepackage{ottlayout}
+\usepackage{mathpartir}
+
+*}}
+
+embed
+{{* tex-wrap-post
+
+\renewcommand{\ottmetavartabular}[1]{\begin{supertabular}{ll}#1\end{supertabular}}
+\renewcommand{\ottgrammartabular}[1]{\begin{description} #1 \end{description}}
+\renewcommand{\ottrulehead}[3]{\item[$#1$ $#2$] }
+\renewcommand{\ottfirstprodline}[6]{$#2$}
+\renewcommand{\ottprodline}[6]{\ifthenelse{\equal{#3}{}}{ $|$~\hbox{$#2$}}{}}
+\renewcommand{\ottbindspecprodline}[6]{}
+\renewcommand{\ottprodnewline}{}
+\renewcommand{\ottinterrule}{ \par }
+\renewcommand{\ottafterlastrule}{}
+
+%\renewenvironment{ottfundefnblock}[3][]{
+%  \begin{displaymath}\begin{array}{l@{~}c@{~}l}}
+%  {\end{array}\end{displaymath}}
+\renewenvironment{ottfundefnblock}[3][]{
+  \framebox{\mbox{#2} } \quad #3 \\[0pt]\begin{displaymath}\begin{array}{l@{~}c@{~}l}}
+  {\end{array}\end{displaymath}}
+\renewcommand{\ottfunclause}[2]{ #1 &\equiv& #2 \\}
+
+%% Use Rok's package for type-setting rules
+
+\renewcommand{\ottpremise}[1]{\premiseSTY{#1} }
+\renewcommand{\ottdrule}[4][]{\druleSTY[#1]{#2}{#3}{#4} }
+\ottstyledefaults{premiselayout=justify,premisenamelayout=none}
+
+%% and Didier Remy's one for packing them up tightly.
+
+\renewcommand{\ottusedrule}[1]{ #1 \and }
+\renewenvironment{ottdefnblock}[3][]{
+%  \par\noindent \framebox{\mbox{#2} } \quad #3 \\
+  \begin{mathparpagebreakable}
+    }
+  {\end{mathparpagebreakable}\par}
+
+*}}
+
+
+ 
+
+

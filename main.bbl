@@ -1,0 +1,14 @@
+\begin{thebibliography}{1}
+
+\bibitem{gotsman2009proving}
+Alexey Gotsman, Byron Cook, Matthew Parkinson, and Viktor Vafeiadis.
+\newblock Proving that non-blocking algorithms don't block.
+\newblock In {\em ACM SIGPLAN Notices}, volume~44, pages 16--28. ACM, 2009.
+
+\bibitem{hoffmann2013quantitative}
+Jan Hoffmann, Michael Marmar, and Zhong Shao.
+\newblock Quantitative reasoning for proving lock-freedom.
+\newblock In {\em Logic in Computer Science (LICS), 2013 28th Annual IEEE/ACM
+  Symposium on}, pages 124--133. IEEE, 2013.
+
+\end{thebibliography}

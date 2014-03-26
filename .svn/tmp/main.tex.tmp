@@ -1,0 +1,339 @@
+\documentclass{article}
+
+\usepackage{etex}
+\usepackage{amsmath}
+\interdisplaylinepenalty=2500
+\usepackage{amssymb,amsfonts,amsthm,mathrsfs,stmaryrd}
+%\usepackage{geometry}
+\usepackage{proof}
+\usepackage{pst-all}
+\usepackage[utf8]{inputenc}
+\usepackage{bussproofs}
+\usepackage[all]{xy}
+\usepackage{graphicx}
+\include{lang}
+
+\include{lang}
+
+\newtheorem{defi}{Definition}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+
+\CompileMatrices
+\UseComputerModernTips
+
+\renewcommand{\ttdefault}{cmtt}
+
+% \title{\Large \bf Separation Logic in the Presence of Garbage Collection}
+% \author{
+% \IEEEauthorblockN{\large Chung-Kil Hur \qquad Derek Dreyer \qquad Viktor Vafeiadis} \\
+% \IEEEauthorblockA{Max Planck Institute for Software Systems (MPI-SWS) \\ 
+% \cd{\{gil,dreyer,viktor\}@mpi-sws.org}}
+% }
+
+
+\title{Proving Lock-Freedom Easily}
+
+\author{
+Wei Li \and Xiao Jia \and Viktor Vafeiadis
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present a new way for proving lock-freedom automatically.
+\end{abstract}
+
+%-----------------------------------------------------------------------------
+\section{Introduction}
+\label{sec:intro}
+%-----------------------------------------------------------------------------
+A non-blocking data structure should guarantee certain \textit{liveness properties}, which are ensured by progress conditions such as obstruction-freedom, lock-freedom, and wait-freedom. The strongest of these properties is wait-freedom, which requires each thread to make progress whenever it is scheduled for a sufficient number of steps, independently of other concurrently executing threads. Such behavior is indeed desirable, but this requirement is very strong and often results in a complicated and inefficient programs. Lock-freedom requires that when the program threads are run sufficiently long, at least one of the threads make progress. This requirement ensures that the program as a whole makes progress and is never blocked. Lock-free algorithms are known for various tasks and are often efficient. Obstruction freedom is the weakest requirement, stating that progress is only guaranteed if we let one of the program threads run in isolation sufficiently long. In this paper we concentrate on lock-freedom, which provides a strong progress guarantee and allows for efficient implementations in practice.
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\textwidth]{treiber.png}
+    \caption{Treiber's non-blocking stack with ghost variable $p$}
+    \label{fig:treiber}
+\end{figure}
+
+We use Treiber's stack example to illustrate the method that can prove lock-free easily. A shared ghost variable $p$ is introduced to the original implemnentation of Treiber's stack, which will be incremented after each $break$, as is shown in Figure ~\ref{fig:treiber}. Without the instructions in red, it is a full implementation of Treiber's stack. To prove the lock-freedom of the program, we can first reduce the lock-freedom to termination, which has been proved by Gotsman et al\cite{gotsman2009proving}. If there's no assertion violations, the new program has the same termination property with the original one. So we will prove the termination of the new program and no assertions violations existed.\\
+
+Consider a non-blocking data structure with operations $op_1, op_2, \dots , op_n$. Let $op$ be the command that nondeterministically executes one of the operations on the data structure with arbitrary parameters:
+\begin{align}
+op = if \ (nondet()) \ op_1;\ else \ if \ (nondet())\ op_2; \dots\ else \ op_n;
+\end{align}
+We denote non-deterministic choice with $nondet()$. The definition of lock-freedom of the data structure requires that for all $k$ the following program $C(k)$ terminates:
+\begin{equation}
+C(k) = \parallel_{i = 1}^k op
+\end{equation} 
+
+%-----------------------------------------------------------------------------
+\section{Background}
+\label{sec:back}
+%-----------------------------------------------------------------------------
+\subsection{Programming Language}
+\label{sec:language}
+We use a basic programming language with concurrency. Commands $C$ are given by the abstract syntax \\
+
+\ottgrammartabular{\ottcmd}
+
+\begin{align*}
+C ::= \ &C_1; C_2 \ |\ 
+skip \ |\ 
+atomic \ C \ |\ 
+loop \ C \ |\ 
+assume(B) \ \\ &|\  
+break \ |\   
+x = E \ |\ 
+C \parallel C \ |\ 
+C \oplus C \\
+\end{align*}
+where $E$ ranges over arithmetic expressions, including non-deterministic choice $nondet()$, and $B$ expresse	s all the boolean expressions. The command $atomic$ $C$ executes $C$ in one indivisible step.
+
+\subsection{Semantics}
+Formulas and programs are interpreted with respect to a \textit{program state} using a small-step operational semantics.
+
+The rules of the semantics are defined as follows. They define an evaluation judgment of the forms
+\begin{align*}
+\langle C, \sigma, p \rangle \to \langle C', \sigma', p' \rangle \quad \mathrm{or} \quad \langle C, \sigma, p \rangle \to abort
+\end{align*}
+where $C$ and $C'$ are commands and $\sigma, \sigma'\in State$. Since our logic includes a shared ghost variable to track the progress of threads, the configuration consists not only of program states, commands, but also of a natural number $p$ initialized with $0$. The judgment states the following. If we execute the command $C$ in the state $\sigma$ with $p$ then it transforms the program state to $\sigma'$ with $p'$ and excution continues with command $C'$, or the next computation step results in an error ($\langle C, \sigma, p \rangle \to abort$). \\
+
+<<<<<<< .mine
+The $inside\_loop(C_1, C)$ defines the commands inside the loop C, where $C_1$ represents the commands left in the loop after executing some part of loop, and $C$ represents the whole loop body. $inside\_loop$ is defined inductively, which means 
+\begin{align*}
+inside\_loop(loop\ C_1, C) \rightarrow inside\_loop(inside\_loop(C_1, C_1), C).
+\end{align*}
+=======
+\ottfundefnaborts
+
+
+\ottdefnstep
+
+>>>>>>> .r7126
+\[
+\tag{\sc Assign}
+\frac{}
+{\langle {x = E}, \sigma, p \rangle \to \langle skip, \sigma[x \mapsto [\![E]\!]\sigma], p + 1 \rangle}
+\]
+
+\[
+\tag{\sc Seq1}
+\frac{\langle C_1, \sigma, p \rangle \to \langle C'_1, \sigma', p' \rangle}
+{\langle C_1; C_2, \sigma, p \rangle \to \langle C'_1; C_2, \sigma', p' \rangle}
+\]
+
+\[
+\tag{\sc Seq2}
+\frac{}
+{\langle skip; C_2, \sigma, p \rangle \to \langle C_2, \sigma, p \rangle}
+\]
+
+\[
+\tag{\sc SeqAbort}
+\frac{\langle C_1, \sigma, p \rangle \to abort}
+{\langle C_1; C_2, \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc Par1}
+\frac{\langle C_1, \sigma, p \rangle \to \langle C'_1, \sigma', p' \rangle}
+{\langle C_1 \parallel C_2, \sigma, p \rangle \to \langle C'_1 \parallel C_2, \sigma', p' \rangle}
+\]
+
+\[
+\tag{\sc Par2}
+\frac{\langle C_2, \sigma, p \rangle \to \langle C'_2, \sigma', p' \rangle}
+{\langle C_1 \parallel C_2, \sigma, p \rangle \to \langle C_1 \parallel C'_2, \sigma', p' \rangle}
+\]
+
+\[
+\tag{\sc Par3}
+\frac{}
+{\langle skip \parallel skip, \sigma, p \rangle \to \langle skip, \sigma, p \rangle}
+\]
+
+\[
+\tag{\sc ParAbort1}
+\frac{\langle C_1, \sigma, p \rangle \to abort}
+{\langle C_1 \parallel C_2, \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc ParAbort2}
+\frac{\langle C_2, \sigma, p \rangle \to abort}
+{\langle C_1 \parallel C_2, \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc Assume}
+\frac{[\![B]\!]\sigma}
+{\langle assume(B), \sigma, p \rangle \to \langle skip, \sigma, p \rangle}
+\]
+
+\[
+\tag{\sc LoopEnter}
+\frac{}
+{\langle loop \  C, \sigma, p \rangle \to \langle inside\_loop(C, C, p), \sigma, p \rangle}
+\]
+
+\[
+\tag{\sc LoopSeq}
+\frac{\langle C_1, \sigma, p \rangle \to \langle C'_1, \sigma', p' \rangle}
+{\langle inside\_loop(C_1, C, p_0), \sigma, p \rangle \to \langle inside\_loop(C'_1, C, p_0), \sigma', p \rangle}
+\]
+
+\[
+\tag{\sc LoopBreak1}
+\frac{}
+{\langle inside\_loop(break, C, p_0), \sigma, p \rangle \to \langle skip, \sigma, p + 1 \rangle}
+\]
+
+\[
+\tag{\sc LoopBreak2}
+\frac{}
+{\langle inside\_loop(break; C_1, C, p_0), \sigma, p \rangle \to \langle skip, \sigma, p + 1 \rangle}
+\]
+
+
+\[
+\tag{\sc LoopAssert1}
+\frac{p_0 < p}
+{\langle inside\_loop(skip, C, p_0), \sigma, p \rangle \to \langle inside\_loop(C, C, p), \sigma, p \rangle }
+\]
+
+\[
+\tag{\sc LoopAssert2}
+\frac{p_0 \geq p}
+{\langle inside\_loop(skip, C, p_0), \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc LoopAbort}
+\frac{\langle C_1, \sigma, p \rangle \to abort}
+{\langle inside\_loop(C_1, C, p_0), \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc Atom}
+\frac{\langle C, \sigma, p \rangle \to^* \langle skip, \sigma', p' \rangle}
+{\langle atomic \  C, \sigma, p \rangle \to \langle skip, \sigma', p' \rangle}
+\]
+
+\[
+\tag{\sc AtomAbort}
+\frac{\langle C, \sigma, p \rangle \to^* abort}
+{\langle atomic \  C, \sigma, p \rangle \to abort}
+\]
+
+\[
+\tag{\sc Nondet1}
+\frac{}
+{\langle C_1 \oplus C_2, \sigma, p \rangle \to \langle C_1, \sigma, p \rangle}
+\]
+
+\[
+\tag{\sc Nondet2}
+\frac{}
+{\langle C_1 \oplus C_2, \sigma, p \rangle \to \langle C_2, \sigma, p \rangle}
+\]
+
+\begin{defi}[Size of Commands]
+Let $C$ be a command. $|C|$ is the size of command $C$ and is inductively defined as follows.
+\begin{align*}
+|skip| &= 0\\
+|C_1; C_2| &= |C_1| + |C_2|\\
+|C_1 \parallel C_2| &= |C_1| + |C_2|\\
+|C_1 \oplus C_2| &= max(|C_1|, |C_2|)\\
+|atomic \ C| &= |C|\\
+|assume(B)| &= 1\\
+|inside\_loop(C1, C)| &= 0\\
+|loop \ C| &= 1\\
+|x = E| &= 1\\
+\end{align*}
+\end{defi}
+
+In the definition of size of commands, we only defined the size of loop to be 1 and didn't define the size of the commands inside the loop. We define the size of the commands inside the loop separately. 
+\begin{defi}
+We define $sil(C)$ to be the size of command inside the loop and 
+\begin{align*}
+sil(inside\_loop(C_1, C, p_0)) &= |C_1| 
+\end{align*}
+\end{defi}
+
+\begin{defi}[Progress Order]
+Let $C, C'$ be commands, $\sigma, \sigma'$ be program states and let $p, p'$ be the value of the shared ghost variable. We define $(C', \sigma', p') \prec (C, \sigma, p) \iff p' > p \lor (p' = p \land |C'| < |C|) \lor (p' = p \land |C'| = |C| \land sil(C') < sil(C))$.
+\end{defi}
+
+\begin{lemma}
+Let $C, C'$ be commands. If $\langle C, \sigma, p \rangle \to \langle C', \sigma', p' \rangle$, then $p + |C| = p' + |C'|$.
+\end{lemma}
+
+\begin{proof}
+By inspection of the mechanism where we increment the shared variable $p$. Outside the loop, $p$ is incremented in each assignment step, where the size of the command is 1. And inside the loop $p$ will only be incremented when the loop is successfully breaked.
+\end{proof}
+
+\begin{theorem}
+\label{theo:p_bound}
+The shared ghost variable $p$, which represents the success of loops and tracks the progress of threads, has an upper bound.
+\end{theorem}
+\begin{proof}
+Let $C_0$ be the whole program commands that haven't been executed with $p = 0$. From Lemma 2.1 we can derive that $0 + |C_0| = p' + |C'|$. Since $p$ is always incremented, inspected from the operational semantics rules, and $|C'| \geq 0$, $p$ has an upper bound $|C_0|$.
+\end{proof}
+
+\begin{lemma}
+\label{lemma:reduce}
+If $\langle C, \sigma, p \rangle \to \langle C', \sigma', p' \rangle$ then $(C', \sigma', p') \prec (C, \sigma, p)$
+\end{lemma}
+\begin{proof}
+By inspection of the operational semantics rules.
+\end{proof}
+
+As a consequence of Lemma ~\ref{lemma:reduce} and Theorem ~\ref{theo:p_bound}, there are no infinite chains of the form $\langle C_1, \sigma_1, p_1 \rangle \rightarrow \langle C_2, \sigma_2, p_2 \rangle \rightarrow \cdots$.
+
+\begin{theorem}
+There exists no infinite chains of the form $\langle C_1, \sigma_1, p_1 \rangle \rightarrow \langle C_2, \sigma_2, p_2 \rangle \rightarrow \cdots$.
+\end{theorem}
+
+The operational semantics shows that each terminal state has the form $\langle skip, \sigma, p \rangle$. 
+
+\begin{defi}[Termination]
+We define a program $C$ terminates from an initial state $\sigma$ if not $\langle C, \sigma, p \rangle \to^* abort$.
+\end{defi}
+Since there is no infinite evaluation chains, if the program doesn't abort, it will terminate.
+\subsection{Specifying Lock-Freedom}
+
+%-----------------------------------------------------------------------------
+\section{Evaluation}
+\label{sec:eval}
+%-----------------------------------------------------------------------------
+
+
+%-----------------------------------------------------------------------------
+\section{Related Work}
+\label{sec:related}
+%-----------------------------------------------------------------------------
+
+Gotsman et al. ~\cite{gotsman2009proving} present an automatic approach for verifying lock-freedom by reducing the lock-freedom problem to termination.
+
+Hoffmann et al. ~\cite{hoffmann2013quantitative} show that Gotsman et al's reduction is incorrect for implementations using thread identifiers or thread-local state.
+They present an alternative reduction to termination that is correct for such implementations. Also, They propose a program logic to verify lock-freedom of concurrent objects. They reason about termination quantitatively by introducing tokens, and model the environment’s interference over the current thread’s termination in terms of token transfer. The idea is simple and natural, but their logic has very limited support of local reasoning. The method requires the automatic generation of loop invariants and resource invariants. One needs to know the total number of tokens needed by each thread(which may have multiple while loops) and the (fixed) number of threads, to calculate the number of tokens for a thread to lose or initially own. This requirement also disallows their logic to reason about programs with infinite nondeterminism.
+
+
+
+%-----------------------------------------------------------------------------
+\section{Conclusion}
+\label{sec:concl}
+%-----------------------------------------------------------------------------
+
+We have presented a much simpler way for proving lock-freedom.
+
+
+\bibliographystyle{plain}
+\bibliography{main}
+
+
+\end{document}
